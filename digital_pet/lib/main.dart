@@ -28,9 +28,13 @@ class DigitalPetPage extends StatefulWidget {
 }
 
 class _DigitalPetPageState extends State<DigitalPetPage> {
-  // Core pet state
+  // Starting pet values
   int happiness = 50;
   int hunger = 50;
+
+  // Pet name
+  String petName = 'My Pet';
+  final TextEditingController nameController = TextEditingController();
 
   // Session state
   bool sessionRunning = true;
@@ -39,7 +43,7 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
   Timer? hungerTimer;
   Timer? winTimer;
 
-  // Tracks how long happiness has continuously stayed above 80
+  // Tracks continuous time above 80 happiness
   int happySeconds = 0;
 
   @override
@@ -48,12 +52,12 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     _startTimers();
   }
 
-  // Keeps all meter values between 0 and 100.
+  // Keeps meters between 0 and 100.
   int _clampMeter(int value) {
     return value.clamp(0, 100);
   }
 
-  // Starts the hunger and win-condition timers.
+  // Starts the timers used by the pet.
   void _startTimers() {
     hungerTimer?.cancel();
     winTimer?.cancel();
@@ -63,38 +67,57 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
       if (!sessionRunning) return;
 
       setState(() {
-        hunger = _clampMeter(hunger + 5);
+        // Reaching 100 normally does not cause a penalty.
+        // A later tick while hunger is already full
+        // reduces happiness by 20.
+        if (hunger + 5 > 100) {
+          hunger = 100;
+          happiness = _clampMeter(happiness - 20);
+        } else {
+          hunger += 5;
+        }
       });
 
       _checkLoss();
     });
 
-    // Check the happiness win condition every second.
+    // Checks whether happiness has stayed above 80.
     winTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!sessionRunning) return;
 
       if (happiness > 80) {
         happySeconds++;
 
-        // Happiness must remain above 80
-        // continuously for 3 minutes.
+        // Three continuous minutes above 80 wins.
         if (happySeconds >= 180) {
           _showWin();
         }
       } else {
-        // Falling to 80 or below resets the streak.
         happySeconds = 0;
       }
     });
   }
 
-  // Feed follows the suggested balance from the assignment.
+  // Confirms the name entered by the user.
+  void _confirmName() {
+    final newName = nameController.text.trim();
+
+    if (newName.isNotEmpty) {
+      setState(() {
+        petName = newName;
+      });
+
+      nameController.clear();
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  // Feed uses the suggested balance from the assignment.
   void _feedPet() {
     if (!sessionRunning) return;
 
     setState(() {
       final nextHunger = _clampMeter(hunger - 10);
-
       final happinessChange = nextHunger < 30 ? 20 : 10;
 
       hunger = nextHunger;
@@ -115,7 +138,7 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     _checkLoss();
   }
 
-  // Reset the entire care session.
+  // Restores the initial care state.
   void _resetPet() {
     setState(() {
       happiness = 50;
@@ -134,8 +157,8 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     });
   }
 
-  // Loss condition from the assignment:
-  // Hunger = 100 AND Happiness <= 10.
+  // Loss:
+  // hunger is 100 AND happiness is 10 or lower.
   void _checkLoss() {
     if (hunger == 100 && happiness <= 10) {
       sessionRunning = false;
@@ -145,13 +168,13 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
       _showOutcomeDialog(
         title: 'Game Over',
-        message: 'Your pet became too hungry and unhappy.',
+        message: '$petName became too hungry and unhappy.',
       );
     }
   }
 
-  // Win condition:
-  // Happiness stays above 80 for 3 continuous minutes.
+  // Win:
+  // happiness remains strictly above 80 for 3 minutes.
   void _showWin() {
     sessionRunning = false;
 
@@ -160,7 +183,7 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
     _showOutcomeDialog(
       title: 'You Win!',
-      message: 'Your pet stayed happy for 3 continuous minutes!',
+      message: '$petName stayed happy for 3 continuous minutes!',
     );
   }
 
@@ -190,9 +213,10 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
   @override
   void dispose() {
-    // Required timer cleanup.
+    // Clean up resources owned by this State object.
     hungerTimer?.cancel();
     winTimer?.cancel();
+    nameController.dispose();
 
     super.dispose();
   }
@@ -202,26 +226,50 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Digital Pet'), centerTitle: true),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
-              // Temporary pet placeholder.
-              // Team 2 can replace this with the pet asset.
-              const Icon(Icons.pets, size: 120),
+              // Temporary placeholder for Team 2's pet asset.
+              const Icon(Icons.pets, size: 100),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
-              const Text(
-                'My Pet',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              Text(
+                petName,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 15),
 
-              // Happiness meter
+              // Editable pet name
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Enter pet name',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSubmitted: (_) => _confirmName(),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _confirmName,
+                    child: const Text('Confirm'),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 25),
+
               Text(
                 'Happiness: $happiness / 100',
                 style: const TextStyle(
@@ -236,7 +284,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
               const SizedBox(height: 25),
 
-              // Hunger meter
               Text(
                 'Hunger: $hunger / 100',
                 style: const TextStyle(
@@ -251,7 +298,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
               const SizedBox(height: 30),
 
-              // Feed and Play actions
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -260,7 +306,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
                     icon: const Icon(Icons.restaurant),
                     label: const Text('Feed'),
                   ),
-
                   ElevatedButton.icon(
                     onPressed: sessionRunning ? _playWithPet : null,
                     icon: const Icon(Icons.sports_esports),
