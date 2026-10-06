@@ -14,7 +14,10 @@ class DigitalPetApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Digital Pet',
-      theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
+      theme: ThemeData(
+        colorSchemeSeed: Colors.deepPurple,
+        useMaterial3: true,
+      ),
       home: const DigitalPetPage(),
     );
   }
@@ -28,22 +31,19 @@ class DigitalPetPage extends StatefulWidget {
 }
 
 class _DigitalPetPageState extends State<DigitalPetPage> {
-  // Starting pet values
+  // ---------------- TEAM 1: CORE PET STATE ----------------
+
   int happiness = 50;
   int hunger = 50;
 
-  // Pet name
   String petName = 'My Pet';
   final TextEditingController nameController = TextEditingController();
 
-  // Session state
   bool sessionRunning = true;
 
-  // Timers
   Timer? hungerTimer;
   Timer? winTimer;
 
-  // Tracks continuous time above 80 happiness
   int happySeconds = 0;
 
   @override
@@ -52,24 +52,18 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     _startTimers();
   }
 
-  // Keeps meters between 0 and 100.
   int _clampMeter(int value) {
     return value.clamp(0, 100);
   }
 
-  // Starts the timers used by the pet.
   void _startTimers() {
     hungerTimer?.cancel();
     winTimer?.cancel();
 
-    // Hunger increases by 5 every 30 seconds.
     hungerTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (!sessionRunning) return;
 
       setState(() {
-        // Reaching 100 normally does not cause a penalty.
-        // A later tick while hunger is already full
-        // reduces happiness by 20.
         if (hunger + 5 > 100) {
           hunger = 100;
           happiness = _clampMeter(happiness - 20);
@@ -81,14 +75,12 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
       _checkLoss();
     });
 
-    // Checks whether happiness has stayed above 80.
     winTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!sessionRunning) return;
 
       if (happiness > 80) {
         happySeconds++;
 
-        // Three continuous minutes above 80 wins.
         if (happySeconds >= 180) {
           _showWin();
         }
@@ -98,7 +90,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     });
   }
 
-  // Confirms the name entered by the user.
   void _confirmName() {
     final newName = nameController.text.trim();
 
@@ -112,7 +103,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     }
   }
 
-  // Feed uses the suggested balance from the assignment.
   void _feedPet() {
     if (!sessionRunning) return;
 
@@ -127,7 +117,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     _checkLoss();
   }
 
-  // Team rule: Play raises happiness by 10.
   void _playWithPet() {
     if (!sessionRunning) return;
 
@@ -138,7 +127,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     _checkLoss();
   }
 
-  // Restores the initial care state.
   void _resetPet() {
     setState(() {
       happiness = 50;
@@ -157,8 +145,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     });
   }
 
-  // Loss:
-  // hunger is 100 AND happiness is 10 or lower.
   void _checkLoss() {
     if (hunger == 100 && happiness <= 10) {
       sessionRunning = false;
@@ -173,8 +159,6 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     }
   }
 
-  // Win:
-  // happiness remains strictly above 80 for 3 minutes.
   void _showWin() {
     sessionRunning = false;
 
@@ -187,7 +171,10 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     );
   }
 
-  void _showOutcomeDialog({required String title, required String message}) {
+  void _showOutcomeDialog({
+    required String title,
+    required String message,
+  }) {
     if (!mounted) return;
 
     showDialog(
@@ -211,9 +198,81 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
     );
   }
 
+  // ---------------- TEAM 2: PET PERSONALITY ----------------
+
+  // Required mood boundaries:
+  // > 70 = Happy
+  // 30-70 = Neutral
+  // < 30 = Unhappy
+  String get moodLabel {
+    if (happiness > 70) {
+      return 'Happy';
+    } else if (happiness >= 30) {
+      return 'Neutral';
+    } else {
+      return 'Unhappy';
+    }
+  }
+
+  Color get moodColor {
+    if (happiness > 70) {
+      return Colors.green;
+    } else if (happiness >= 30) {
+      return Colors.amber;
+    } else {
+      return Colors.red;
+    }
+  }
+
+  IconData get moodIcon {
+    if (happiness > 70) {
+      return Icons.sentiment_very_satisfied;
+    } else if (happiness >= 30) {
+      return Icons.sentiment_neutral;
+    } else {
+      return Icons.sentiment_very_dissatisfied;
+    }
+  }
+
+  // Personality message is derived from the pet's current state.
+  String get petMessage {
+    if (!sessionRunning) {
+      return '$petName is taking a little break.';
+    }
+
+    if (hunger >= 80) {
+      return '$petName is really hungry!';
+    }
+
+    if (happiness < 30) {
+      return '$petName wants some attention. Let\'s play!';
+    }
+
+    if (happiness > 80 && hunger < 40) {
+      return '$petName is having the best day!';
+    }
+
+    if (happiness > 70) {
+      return '$petName is feeling happy!';
+    }
+
+    return '$petName is doing okay.';
+  }
+
+  // Visual Polish effect #1:
+  // Pet becomes slightly larger when happy and smaller when unhappy.
+  double get petScale {
+    if (happiness > 70) {
+      return 1.06;
+    } else if (happiness < 30) {
+      return 0.94;
+    }
+
+    return 1.0;
+  }
+
   @override
   void dispose() {
-    // Clean up resources owned by this State object.
     hungerTimer?.cancel();
     winTimer?.cancel();
     nameController.dispose();
@@ -223,31 +282,111 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Accessibility: disable animations when the device requests
+    // reduced motion.
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
+    final animationDuration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 350);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Digital Pet'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('Digital Pet'),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              const SizedBox(height: 10),
+              // ---------------- TEAM 2 PET DISPLAY ----------------
 
-              // Temporary placeholder for Team 2's pet asset.
-              const Icon(Icons.pets, size: 100),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.shade50,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  children: [
+                    // Visual Polish effect #1: animated pet size.
+                    AnimatedScale(
+                      scale: petScale,
+                      duration: animationDuration,
 
-              const SizedBox(height: 10),
+                      // Required mood tint applied to transparent bunny.
+                      child: ColorFiltered(
+                        colorFilter: ColorFilter.mode(
+                          moodColor,
+                          BlendMode.modulate,
+                        ),
+                        child: Image.asset(
+                          'assets/bunny.png',
+                          height: 190,
+                          fit: BoxFit.contain,
+                          semanticLabel: 'Digital pet bunny',
+                        ),
+                      ),
+                    ),
 
-              Text(
-                petName,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                    const SizedBox(height: 12),
+
+                    Text(
+                      petName,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Mood uses text + icon, not color alone.
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          moodIcon,
+                          color: moodColor,
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          moodLabel,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: moodColor,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Visual Polish effect #2:
+                    // Smooth transition when the personality message changes.
+                    AnimatedSwitcher(
+                      duration: animationDuration,
+                      child: Text(
+                        petMessage,
+                        key: ValueKey(petMessage),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
-              // Editable pet name
+              // ---------------- PET NAME ----------------
+
               Row(
                 children: [
                   Expanded(
@@ -270,6 +409,8 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
               const SizedBox(height: 25),
 
+              // ---------------- HAPPINESS ----------------
+
               Text(
                 'Happiness: $happiness / 100',
                 style: const TextStyle(
@@ -280,9 +421,25 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
               const SizedBox(height: 8),
 
-              LinearProgressIndicator(value: happiness / 100, minHeight: 14),
+              // Visual Polish effect #3: smoothly animated meter.
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(
+                  begin: 0,
+                  end: happiness / 100,
+                ),
+                duration: animationDuration,
+                builder: (context, value, child) {
+                  return LinearProgressIndicator(
+                    value: value,
+                    minHeight: 14,
+                    borderRadius: BorderRadius.circular(10),
+                  );
+                },
+              ),
 
               const SizedBox(height: 25),
+
+              // ---------------- HUNGER ----------------
 
               Text(
                 'Hunger: $hunger / 100',
@@ -294,9 +451,24 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
               const SizedBox(height: 8),
 
-              LinearProgressIndicator(value: hunger / 100, minHeight: 14),
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(
+                  begin: 0,
+                  end: hunger / 100,
+                ),
+                duration: animationDuration,
+                builder: (context, value, child) {
+                  return LinearProgressIndicator(
+                    value: value,
+                    minHeight: 14,
+                    borderRadius: BorderRadius.circular(10),
+                  );
+                },
+              ),
 
               const SizedBox(height: 30),
+
+              // ---------------- CARE BUTTONS ----------------
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -319,9 +491,13 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
               // Advanced Feature: Session Controls
               ElevatedButton.icon(
                 onPressed: _toggleSession,
-                icon: Icon(sessionRunning ? Icons.pause : Icons.play_arrow),
+                icon: Icon(
+                  sessionRunning ? Icons.pause : Icons.play_arrow,
+                ),
                 label: Text(
-                  sessionRunning ? 'Pause Session' : 'Resume Session',
+                  sessionRunning
+                      ? 'Pause Session'
+                      : 'Resume Session',
                 ),
               ),
 
@@ -335,12 +511,30 @@ class _DigitalPetPageState extends State<DigitalPetPage> {
 
               const SizedBox(height: 20),
 
-              Text(
-                sessionRunning ? 'Session Running' : 'Session Paused',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: sessionRunning ? Colors.green : Colors.orange,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    sessionRunning
+                        ? Icons.play_circle
+                        : Icons.pause_circle,
+                    color: sessionRunning
+                        ? Colors.green
+                        : Colors.orange,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    sessionRunning
+                        ? 'Session Running'
+                        : 'Session Paused',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: sessionRunning
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
